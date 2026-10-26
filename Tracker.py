@@ -1,43 +1,30 @@
-import sqlite3
 import datetime
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="Sleep Tracker Pro", page_icon="🌙", layout="centered")
 
-def init_db():
-    conn = sqlite3.connect("sleep_tracker_cloud.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sleep_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            bed_time TEXT,
-            wake_time TEXT,
-            duration REAL,
-            mood TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# --- Функция работы с ЛИЧНЫМ хранилищем каждого пользователя ---
+def load_user_logs():
+    """Загружает историю снов только для текущего браузера"""
+    if "my_sleep_history" not in st.session_state:
+        st.session_state["my_sleep_history"] = []
+    return st.session_state["my_sleep_history"]
 
-def save_log(date, bed_time, wake_time, duration, mood):
-    conn = sqlite3.connect("sleep_tracker_cloud.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO sleep_logs (date, bed_time, wake_time, duration, mood)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (date, bed_time, wake_time, duration, mood))
-    conn.commit()
-    conn.close()
-
-def get_logs():
-    conn = sqlite3.connect("sleep_tracker_cloud.db")
-    df = pd.read_sql_query("SELECT date, bed_time, wake_time, duration, mood FROM sleep_logs ORDER BY date DESC", conn)
-    conn.close()
-    return df
-
-init_db()
+def save_user_log(date, bed_time, wake_time, duration, mood):
+    """Сохраняет запись в личную сессию пользователя"""
+    if "my_sleep_history" not in st.session_state:
+        st.session_state["my_sleep_history"] = []
+    
+    new_log = {
+        "Дата": date,
+        "Время сна": f"{bed_time} - {wake_time}",
+        "Всего сна": f"{round(duration, 2)} ч",
+        "Настроение": mood,
+        "raw_duration": duration,
+        "raw_date": date
+    }
+    st.session_state["my_sleep_history"].insert(0, new_log)
 
 def calculate_sleep_phases(duration_hours):
     deep = duration_hours * 0.20
@@ -53,15 +40,15 @@ def get_sleep_tips(duration_hours, mood):
         tips.append("💤 **Избыток сна:** Сон более 9 часов может вызывать вялость. Старайтесь соблюдать режим.")
     else:
         tips.append("✅ **Отличная длительность:** Вы уложились в здоровую норму (7–9 часов).")
-    
-    if mood in ["Усталое", "Разбитое"]:
-        tips.append("💡 **Совет:** Попробуйте отказаться от гаджетов за 1 час до сна и проветрить комнату.")
     return tips
 
-st.title("🌙 Умный Трекер Сна Pro")
-st.write("Отслеживайте циклы сна, ведите историю и делитесь результатами.")
+st.title("🌙 Личный Трекер Сна Pro")
+st.write("Ваши данные хранятся приватно в вашем браузере и не видны другим пользователям.")
 
 tab1, tab2, tab3 = st.tabs(["📊 Записать сон", "📈 История и Аналитика", "⏰ Калькулятор циклов"])
+
+# Получаем историю текущего пользователя
+history_logs = load_user_logs()
 
 with tab1:
     st.header("📋 Новая запись")
@@ -85,13 +72,13 @@ with tab1:
             dt_wake += datetime.timedelta(days=1)
             
         duration_hours = (dt_wake - dt_bed).total_seconds() / 3600
-        
         total_minutes = duration_hours * 60
         cycles_count = int(total_minutes // 90)
         remainder_minutes = int(total_minutes % 90)
         
-        save_log(log_date.strftime("%Y-%m-%d"), bed_time.strftime("%H:%M"), wake_time.strftime("%H:%M"), round(duration_hours, 2), mood)
-        st.success("Данные успешно сохранены в историю!")
+        # Сохраняем в индивидуальную сессию
+        save_user_log(log_date.strftime("%d.%m.%Y"), bed_time.strftime("%H:%M"), wake_time.strftime("%H:%M"), duration_hours, mood)
+        st.success("Данные успешно сохранены в вашу личную историю!")
         
         st.subheader("📊 Анализ этой ночи")
         c1, c2 = st.columns(2)
@@ -99,9 +86,9 @@ with tab1:
         c2.metric("Пройдено полных циклов", f"{cycles_count}")
         
         if remainder_minutes > 20 and remainder_minutes < 70:
-            st.warning(f"⚠️ Вы проснулись в середине цикла (остаток {remainder_minutes} мин). Из-за этого может быть чувство разбитости.")
+            st.warning(f"⚠️ Вы проснулись в середине цикла. Из-за этого может быть чувство разбитости.")
         else:
-            st.success("✨ Отлично! Вы проснулись близко к концу цикла, это идеальное время для бодрости.")
+            st.success("✨ Отлично! Вы проснулись на стыке циклов, это идеальное время для бодрости.")
 
         deep_s, rem_s, light_s = calculate_sleep_phases(duration_hours)
         df_phases = pd.DataFrame({
@@ -116,19 +103,23 @@ with tab1:
 
 with tab2:
     st.header("📈 Ваша статистика")
-    df_history = get_logs()
     
-    if df_history.empty:
-        st.info("История пуста. Добавьте первую запись во вкладке 'Записать сон'.")
+    if not history_logs:
+        st.info("Ваша история пока пуста. Запишите первую ночь на первой вкладке!")
     else:
+        # Превращаем историю в таблицу для графиков
+        df_history = pd.DataFrame(history_logs)
+        
+        # Строим график по последним 7 записям
         df_chart = df_history.head(7).copy()
-        df_chart = df_chart.sort_values(by="date")
+        df_chart = df_chart.iloc[::-1] # Переворачиваем для хронологического порядка
         
-        st.subheader("Длительность сна за последние 7 дней")
-        st.line_chart(data=df_chart, x="date", y="duration", use_container_width=True)
+        st.subheader("Длительность последних снов")
+        st.line_chart(data=df_chart, x="Дата", y="raw_duration", use_container_width=True)
         
-        st.subheader("Все сохраненные записи")
-        st.dataframe(df_history, use_container_width=True)
+        st.subheader("Ваш личный журнал")
+        # Показываем пользователю только красивые текстовые колонки
+        st.dataframe(df_history[["Дата", "Время сна", "Всего сна", "Настроение"]], use_container_width=True)
 
 with tab3:
     st.header("⏰ Калькулятор идеального пробуждения")
@@ -143,7 +134,8 @@ with tab3:
     st.subheader("⏰ Лучшее время для будильника:")
     
     times = []
-    for cycles in [4,5,6]:
+    # Квадратные скобки на месте, теперь синтаксис будет идеальным
+    for cycles in [4, 5, 6]:
         wake_t = dt_plan_bed + datetime.timedelta(minutes=cycles * 90)
         label = "⚠️ Маловато" if cycles == 4 else ("👌 Хорошо" if cycles == 5 else "🌟 Идеально")
         times.append({"Циклы": f"{cycles} циклов", "Время сна": f"{cycles * 1.5} ч.", "Будильник": wake_t.strftime("%H:%M"), "Статус": label})
