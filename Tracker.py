@@ -3,14 +3,14 @@ import pandas as pd
 import streamlit as st
 import os
 
-# Базовая настройка
+# Настройка страницы с иконкой
 st.set_page_config(
     page_title="Sleep Tracker Pro", 
     page_icon="icon.png" if os.path.exists("icon.png") else "🌙", 
     layout="centered"
 )
 
-# Профессиональный хак: принудительно зашиваем иконку для Android и iPhone во все метатеги страницы
+# Принудительное внедрение иконки для рабочих столов мобильных устройств
 st.markdown(
     """
     <head>
@@ -26,9 +26,13 @@ st.markdown(
 if os.path.exists("icon.png"):
     st.image("icon.png", width=80)
 
+# --- Работа с личным хранилищем пользователя ---
+def load_user_logs():
+    if "my_sleep_history" not in st.session_state:
+        st.session_state["my_sleep_history"] = []
+    return st.session_state["my_sleep_history"]
 
 def save_user_log(date, bed_time, wake_time, duration, mood):
-    """Сохраняет запись в личную сессию пользователя"""
     if "my_sleep_history" not in st.session_state:
         st.session_state["my_sleep_history"] = []
     
@@ -92,7 +96,6 @@ with tab1:
         cycles_count = int(total_minutes // 90)
         remainder_minutes = int(total_minutes % 90)
         
-        # Сохраняем в индивидуальную сессию
         save_user_log(log_date.strftime("%d.%m.%Y"), bed_time.strftime("%H:%M"), wake_time.strftime("%H:%M"), duration_hours, mood)
         st.success("Данные успешно сохранены в вашу личную историю!")
         
@@ -123,18 +126,14 @@ with tab2:
     if not history_logs:
         st.info("Ваша история пока пуста. Запишите первую ночь на первой вкладке!")
     else:
-        # Превращаем историю в таблицу для графиков
         df_history = pd.DataFrame(history_logs)
-        
-        # Строим график по последним 7 записям
         df_chart = df_history.head(7).copy()
-        df_chart = df_chart.iloc[::-1] # Переворачиваем для хронологического порядка
+        df_chart = df_chart.iloc[::-1]
         
         st.subheader("Длительность последних снов")
         st.line_chart(data=df_chart, x="Дата", y="raw_duration", use_container_width=True)
         
         st.subheader("Ваш личный журнал")
-        # Показываем пользователю только красивые текстовые колонки
         st.dataframe(df_history[["Дата", "Время сна", "Всего сна", "Настроение"]], use_container_width=True)
 
 with tab3:
@@ -150,8 +149,7 @@ with tab3:
     st.subheader("⏰ Лучшее время для будильника:")
     
     times = []
-    # Квадратные скобки на месте, теперь синтаксис будет идеальным
-    for cycles in [4, 5, 6]:
+    for cycles in:
         wake_t = dt_plan_bed + datetime.timedelta(minutes=cycles * 90)
         label = "⚠️ Маловато" if cycles == 4 else ("👌 Хорошо" if cycles == 5 else "🌟 Идеально")
         times.append({"Циклы": f"{cycles} циклов", "Время сна": f"{cycles * 1.5} ч.", "Будильник": wake_t.strftime("%H:%M"), "Статус": label})
