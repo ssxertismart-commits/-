@@ -1,0 +1,15 @@
+{
+  "short_name": "SleepTracker",
+  "name": "SleepTracker",
+  "icons": [
+    {
+      "src": "favicon_512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/sleeptracker",
+  "display": "standalone",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff"
+}
