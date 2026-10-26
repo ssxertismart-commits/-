@@ -143,7 +143,7 @@ with tab3:
     st.subheader("⏰ Лучшее время для будильника:")
     
     times = []
-    for cycles in:
+    for cycles in [4,5,6]:
         wake_t = dt_plan_bed + datetime.timedelta(minutes=cycles * 90)
         label = "⚠️ Маловато" if cycles == 4 else ("👌 Хорошо" if cycles == 5 else "🌟 Идеально")
         times.append({"Циклы": f"{cycles} циклов", "Время сна": f"{cycles * 1.5} ч.", "Будильник": wake_t.strftime("%H:%M"), "Статус": label})
