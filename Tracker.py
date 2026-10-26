@@ -1,8 +1,15 @@
 import datetime
 import pandas as pd
+import datetime
+import pandas as pd
 import streamlit as st
+import os
 
-st.set_page_config(page_title="Sleep Tracker Pro", page_icon="🌙", layout="centered")
+st.set_page_config(
+    page_title="Sleep Tracker Pro", 
+    page_icon="logo.png" if os.path.exists("logo.png") else "🌙", 
+    layout="centered"
+)
 
 # --- Функция работы с ЛИЧНЫМ хранилищем каждого пользователя ---
 def load_user_logs():
