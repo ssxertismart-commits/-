@@ -3,14 +3,14 @@ import pandas as pd
 import streamlit as st
 import os
 
-# Настройка страницы с иконкой
+# Настройка страницы
 st.set_page_config(
     page_title="Sleep Tracker Pro", 
     page_icon="icon.png" if os.path.exists("icon.png") else "🌙", 
     layout="centered"
 )
 
-# Принудительное внедрение иконки для рабочих столов мобильных устройств
+# Метатеги для иконки
 st.markdown(
     """
     <head>
@@ -25,6 +25,15 @@ st.markdown(
 
 if os.path.exists("icon.png"):
     st.image("icon.png", width=80)
+
+# Словарь для перевода настроения в баллы на графике
+MOOD_SCORES = {
+    "Энергичное": 5,
+    "Хорошее": 4,
+    "Нормальное": 3,
+    "Усталое": 2,
+    "Разбитое": 1
+}
 
 # --- Работа с личным хранилищем пользователя ---
 def load_user_logs():
@@ -41,6 +50,7 @@ def save_user_log(date, bed_time, wake_time, duration, mood):
         "Время сна": f"{bed_time} - {wake_time}",
         "Всего сна": f"{round(duration, 2)} ч",
         "Настроение": mood,
+        "Балл настроения": MOOD_SCORES.get(mood, 3), # Добавляем цифровую оценку
         "raw_duration": duration,
         "raw_date": date
     }
@@ -67,7 +77,6 @@ st.write("Ваши данные хранятся приватно в вашем 
 
 tab1, tab2, tab3 = st.tabs(["📊 Записать сон", "📈 История и Аналитика", "⏰ Калькулятор циклов"])
 
-# Получаем историю текущего пользователя
 history_logs = load_user_logs()
 
 with tab1:
@@ -130,10 +139,17 @@ with tab2:
         df_chart = df_history.head(7).copy()
         df_chart = df_chart.iloc[::-1]
         
-        st.subheader("Длительность последних снов")
+        # 1. График длительности сна
+        st.subheader("📊 Длительность последних снов")
         st.line_chart(data=df_chart, x="Дата", y="raw_duration", use_container_width=True)
         
-        st.subheader("Ваш личный журнал")
+        # 2. НОВЫЙ График настроения
+        st.subheader("📈 Динамика вашего настроения (1-5)")
+        # Отображаем в виде удобной столбчатой диаграммы
+        st.bar_chart(data=df_chart, x="Дата", y="Балл настроения", color="#bb86fc", use_container_width=True)
+        st.caption("5 — Энергичное, 4 — Хорошее, 3 — Нормальное, 2 — Усталое, 1 — Разбитое")
+        
+        st.subheader("📋 Ваш личный журнал")
         st.dataframe(df_history[["Дата", "Время сна", "Всего сна", "Настроение"]], use_container_width=True)
 
 with tab3:
@@ -149,9 +165,10 @@ with tab3:
     st.subheader("⏰ Лучшее время для будильника:")
     
     times = []
-    for cycles in [4,5,6]:
+    for cycles in [4, 5, 6]:
         wake_t = dt_plan_bed + datetime.timedelta(minutes=cycles * 90)
         label = "⚠️ Маловато" if cycles == 4 else ("👌 Хорошо" if cycles == 5 else "🌟 Идеально")
         times.append({"Циклы": f"{cycles} циклов", "Время сна": f"{cycles * 1.5} ч.", "Будильник": wake_t.strftime("%H:%M"), "Статус": label})
         
     st.table(pd.DataFrame(times))
+    
