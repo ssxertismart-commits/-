@@ -1,22 +1,31 @@
 import datetime
 import pandas as pd
-import datetime
-import pandas as pd
 import streamlit as st
 import os
 
+# Базовая настройка
 st.set_page_config(
     page_title="Sleep Tracker Pro", 
-    page_icon="logo.png" if os.path.exists("logo.png") else "🌙", 
+    page_icon="icon.png" if os.path.exists("icon.png") else "🌙", 
     layout="centered"
 )
 
-# --- Функция работы с ЛИЧНЫМ хранилищем каждого пользователя ---
-def load_user_logs():
-    """Загружает историю снов только для текущего браузера"""
-    if "my_sleep_history" not in st.session_state:
-        st.session_state["my_sleep_history"] = []
-    return st.session_state["my_sleep_history"]
+# Профессиональный хак: принудительно зашиваем иконку для Android и iPhone во все метатеги страницы
+st.markdown(
+    """
+    <head>
+        <link rel="icon" type="image/png" href="https://githubusercontent.com">
+        <link rel="apple-touch-icon" href="https://githubusercontent.com">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+    </head>
+    """,
+    unsafe_allow_html=True
+)
+
+if os.path.exists("icon.png"):
+    st.image("icon.png", width=80)
+
 
 def save_user_log(date, bed_time, wake_time, duration, mood):
     """Сохраняет запись в личную сессию пользователя"""
